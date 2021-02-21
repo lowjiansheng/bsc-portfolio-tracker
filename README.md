@@ -6,7 +6,7 @@ This is a small script that I wrote for myself to keep track of all the yield mi
 
 Protocols will have to be integrated manually.
 
-You can see the latest list of supported protocols under `ProtocolFactory.js`
+You can see the latest list of supported protocols under [ProtocolFactory.js](https://github.com/lowjiansheng/bsc-portfolio-tracker/blob/main/src/ProtocolFactory.js)
 
 ## Running Instructions
 
