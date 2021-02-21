@@ -45,13 +45,20 @@ function ProtocolFactory(web3, userAddress) {
 			);
 		}
 
-		Promise.all(amountLockedInProtocol).then((amountLockedInProtocols) => {
-			console.log(JSON.stringify(amountLockedInProtocols));
-			const totalAmountLocked = amountLockedInProtocols.reduce(
+		Promise.all(amountLockedInProtocol).then((protocolResults) => {
+			const totalAmountLocked = protocolResults.reduce(
 				(acc, curr) => acc + parseFloat(curr.amountInProtocol),
 				0
 			);
-			console.log("Total amount locked in protocols = US$" + totalAmountLocked);
+			let result = {
+				totalValueLocked: totalAmountLocked,
+				totalValuePendingEarn: 0, // TODO
+				totalValueDeposit: 0, // TODO
+				walletAddress: userAddress,
+				protocols: protocolResults,
+			};
+
+			console.log(JSON.stringify(result));
 		});
 	};
 }
