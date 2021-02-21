@@ -29,7 +29,7 @@ function BDollarFinance (web3) {
                 }))
             })
             return Promise.all(participatedLPsPricePromise).then((totalAmountInLP) => {
-                return totalAmountInLP.reduce((acc, currentValue) => acc + currentValue)
+                return totalAmountInLP.reduce((acc, currentValue) => acc + currentValue, 0)
             })
         })
     }
