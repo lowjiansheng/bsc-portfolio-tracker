@@ -11,57 +11,87 @@ function Goose(web3) {
 
 	this.protocolName = "Goose Finance";
 
+	// TODO: refactor this method. Too much repetitive code.
 	this.getProtocolInformation = function (userAddress) {
-		return this.getLPsParticipated(userAddress).then((participatedLPs) => {
-			let participatedLPsPricePromise = [];
-			participatedLPs.forEach((participatedLP) => {
-				participatedLPsPricePromise.push(
-					LPTokenCalculator.isLPToken(this.web3, participatedLP.lpToken).then(
-						(isLP) => {
+		return TokenInfoFetcher.getTokenInfoWithPriceFromAddress(
+			this.web3,
+			GooseConstants.EGG_TOKEN_ADDRESS
+		).then((eggTokenInfo) => {
+			return this.getLPsParticipated(userAddress).then((participatedPools) => {
+				let participatedPoolsResultsPromise = [];
+				participatedPools.forEach((participatedPool) => {
+					participatedPoolsResultsPromise.push(
+						LPTokenCalculator.isLPToken(
+							this.web3,
+							participatedPool.lpToken
+						).then((isLP) => {
 							if (isLP) {
 								return LPTokenCalculator.getPriceOfLPToken(
 									this.web3,
-									participatedLP.lpToken
+									participatedPool.lpToken
 								).then((pricePerLPToken) => {
 									return TokenInfoFetcher.getTokenInfoFromAddress(
 										this.web3,
-										participatedLP.lpToken
+										participatedPool.lpToken
 									).then((tokenInfo) => {
-										return (
-											(participatedLP.amount / 10 ** tokenInfo.decimals) *
-											pricePerLPToken
-										);
+										const totalAmountDeposit =
+											participatedPool.amount / 10 ** tokenInfo.decimals;
+										const pendingEgg =
+											participatedPool.pendingEgg / 10 ** eggTokenInfo.decimals;
+										const pendingValueEgg =
+											pendingEgg * eggTokenInfo.pricePerToken;
+										return {
+											totalValueAmount: totalAmountDeposit * pricePerLPToken,
+											amountDeposit: totalAmountDeposit,
+											pendingEgg: pendingEgg,
+											pendingValueEgg: pendingValueEgg,
+										};
 									});
 								});
 							} else {
-								return PriceFetcher.getPriceByTokenAddress(
+								return TokenInfoFetcher.getTokenInfoWithPriceFromAddress(
 									this.web3,
-									participatedLP.lpToken
-								).then((pricePerToken) => {
-									return TokenInfoFetcher.getTokenInfoFromAddress(
-										this.web3,
-										participatedLP.lpToken
-									).then((tokenInfo) => {
-										return (
-											(participatedLP.amount / 10 ** tokenInfo.decimals) *
-											pricePerToken
-										);
-									});
+									participatedPool.lpToken
+								).then((tokenInfo) => {
+									const totalAmountDeposit =
+										participatedPool.amount / 10 ** tokenInfo.decimals;
+									const pendingEgg =
+										participatedPool.pendingEgg / 10 ** eggTokenInfo.decimals;
+									const pendingValueEgg =
+										pendingEgg * eggTokenInfo.pricePerToken;
+									return {
+										totalValueAmount:
+											totalAmountDeposit * tokenInfo.pricePerToken,
+										amountDeposit: totalAmountDeposit,
+										pendingEgg: pendingEgg,
+										pendingValueEgg: pendingValueEgg,
+									};
 								});
 							}
-						}
-					)
+						})
+					);
+				});
+				return Promise.all(participatedPoolsResultsPromise).then(
+					(participatedPoolsResults) => {
+						const totalValueDeposits = participatedPoolsResults.reduce(
+							(acc, currentValue) => acc + currentValue.totalValueAmount,
+							0
+						);
+						const pendingEarn = participatedPoolsResults.reduce(
+							(acc, currentValue) => acc + currentValue.pendingValueEgg,
+							0
+						);
+						return {
+							totalAmount: totalValueDeposits,
+							totalDeposits: totalValueDeposits,
+							pendingEarn: pendingEarn,
+							protocolInformation: {
+								poolsParticipated: participatedPoolsResults,
+							},
+						};
+					}
 				);
 			});
-			return Promise.all(participatedLPsPricePromise).then(
-				(totalAmountInLP) => {
-					return {
-						totalAmount: totalAmountInLP.reduce(
-							(acc, currentValue) => acc + currentValue
-						),
-					};
-				}
-			);
 		});
 	};
 
@@ -84,15 +114,21 @@ function Goose(web3) {
 				return Promise.all(poolInfoRequests).then((userPoolInfos) => {
 					let participatedPoolInfoPromise = [];
 					for (let i = 0; i < poolLength; i++) {
-						if (userPoolInfos[i].shares !== "0") {
+						if (userPoolInfos[i].amount !== "0") {
 							participatedPoolInfoPromise.push(
 								contract.methods
 									.poolInfo(i)
 									.call()
 									.then((poolInfo) => {
-										poolInfo.amount = userPoolInfos[i].amount;
-										poolInfo.rewardDebt = userPoolInfos[i].rewardDebt;
-										return poolInfo;
+										return contract.methods
+											.pendingEgg(i, userAddress)
+											.call()
+											.then((pendingEgg) => {
+												poolInfo.amount = userPoolInfos[i].amount;
+												poolInfo.rewardDebt = userPoolInfos[i].rewardDebt;
+												poolInfo.pendingEgg = pendingEgg;
+												return poolInfo;
+											});
 									})
 							);
 						}
