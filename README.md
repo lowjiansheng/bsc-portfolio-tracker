@@ -12,5 +12,5 @@ You can see the latest list of supported protocols under `ProtocolFactory.js`
 
 1. Clone the entire repository into your local computer.
 2. Make sure you have node installed.
-3. Under the `src` folder, create a new file `secrets/secrets.js` and put in the BSC address you want to track. (TODO: this will be improved)
+3. Modify the wallet address that you want to track at `src/secrets/secrets.js`
 4. At root, run `node .`
