@@ -1,8 +1,7 @@
-const IBdoSharesFarm = require("../../build/contracts/IBdoSharesFarm.json");
 const IBdoBoardRoom = require("../../build/contracts/IBdoBoardRoom.json");
 const BDO_CONSTANTS = require("./constants");
 
-const LPTokenCalculator = require("../LPTokenCalculator");
+const BDOLiquidityPool = require("./LiquidityPool");
 
 const TokenInfoFetcher = require("../BlockChainUtils/TokenInfoFetcher");
 const PriceFetcher = require("../BlockChainUtils/PriceFetcher");
@@ -16,84 +15,24 @@ function BDollarFinance(web3) {
 	this.web3 = web3;
 
 	this.getProtocolInformation = function (userAddress) {
-		return this.calculateAmountInLP(userAddress).then((LPValue) => {
+		return BDOLiquidityPool.calculateAmountInLP(
+			this.web3,
+			userAddress,
+			this.poolLength
+		).then((LPValue) => {
 			return this.calculateAmountInBoardRoomStakes(userAddress).then(
 				(stakeValue) => {
 					return {
 						totalAmount: LPValue.amountInLP + stakeValue.totalAmount,
 						totalDeposits: stakeValue.amountsBDOStaked + LPValue.amountInLP, // TODO: add LP value stake
 						pendingEarn: stakeValue.amountBDOEarned,
-						boardRoomInformation: stakeValue,
-						lpInformation: LPValue,
+						protocolInformation: {
+							boardRoomInformation: stakeValue,
+							lpInformation: LPValue,
+						},
 					};
 				}
 			);
-		});
-	};
-
-	this.calculateAmountInLP = function (userAddress) {
-		return this.getLPsParticipated(userAddress).then((participatedLPs) => {
-			let participatedLPsPricePromise = [];
-			participatedLPs.forEach((participatedLP) => {
-				participatedLPsPricePromise.push(
-					LPTokenCalculator.getPriceOfLPToken(
-						this.web3,
-						participatedLP.lpToken
-					).then((pricePerLPToken) => {
-						return {
-							amountInLP: (participatedLP.amount / 10 ** 18) * pricePerLPToken,
-							lpPendingShare: participatedLP.pendingShare,
-						};
-					})
-				);
-			});
-			return Promise.all(participatedLPsPricePromise).then(
-				(totalAmountInLP) => {
-					return {
-						amountInLP: totalAmountInLP.reduce(
-							(acc, currentValue) => acc + currentValue.amountInLP,
-							0
-						),
-						lpPendingShare: totalAmountInLP.lpPendingShare,
-					};
-				}
-			);
-		});
-	};
-
-	// returns all the corresponding information of the participated LP pools
-	this.getLPsParticipated = function (userAddress) {
-		let contract = new this.web3.eth.Contract(
-			IBdoSharesFarm,
-			BDO_CONSTANTS.BDO_SHARE_POOL_CONTRACT
-		);
-		let poolInfoRequests = [];
-		for (let i = 0; i < this.poolLength; i++) {
-			poolInfoRequests.push(contract.methods.userInfo(i, userAddress).call());
-		}
-		return Promise.all(poolInfoRequests).then((userPoolInfos) => {
-			let participatedPoolInfoPromise = [];
-			for (let i = 0; i < this.poolLength; i++) {
-				if (userPoolInfos[i].amount !== "0") {
-					participatedPoolInfoPromise.push(
-						contract.methods
-							.poolInfo(i)
-							.call()
-							.then((poolInfo) => {
-								return contract.methods
-									.pendingShare(i, userAddress)
-									.call()
-									.then((pendingShare) => {
-										poolInfo.amount = userPoolInfos[i].amount;
-										poolInfo.pendingShare = pendingShare;
-										poolInfo.rewardDebt = userPoolInfos[i].rewardDebt;
-										return poolInfo;
-									});
-							})
-					);
-				}
-			}
-			return Promise.all(participatedPoolInfoPromise);
 		});
 	};
 
