@@ -52,10 +52,18 @@ function ProtocolFactory(web3, userAddress) {
 				(acc, curr) => acc + parseFloat(curr.amountInProtocol),
 				0
 			);
+			const totalValuePendingEarn = protocolResults.reduce(
+				(acc, curr) => acc + parseFloat(curr.pendingEarn),
+				0
+			);
+			const totalValueDeposits = protocolResults.reduce(
+				(acc, curr) => acc + parseFloat(curr.totalDeposits),
+				0
+			);
 			let result = {
 				totalValueLocked: totalAmountLocked,
-				totalValuePendingEarn: 0, // TODO
-				totalValueDeposit: 0, // TODO
+				totalValuePendingEarn: totalValuePendingEarn, // TODO
+				totalValueDeposits: totalValueDeposits, // TODO
 				walletAddress: userAddress,
 				protocols: protocolResults,
 			};
