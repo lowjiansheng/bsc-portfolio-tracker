@@ -3,7 +3,7 @@ const BDO_CONSTANTS = require("./constants");
 
 const LPTokenCalculator = require("../LPTokenCalculator");
 
-let calculateAmountInLP = function (web3, userAddress, poolLength) {
+let getLPInformation = function (web3, userAddress, poolLength, BDOSharesInfo) {
 	return getLPsParticipated(web3, userAddress, poolLength).then(
 		(participatedLPs) => {
 			let participatedLPsPricePromise = [];
@@ -13,21 +13,33 @@ let calculateAmountInLP = function (web3, userAddress, poolLength) {
 						web3,
 						participatedLP.lpToken
 					).then((pricePerLPToken) => {
+						const pendingShareAmount =
+							participatedLP.pendingShare / 10 ** BDOSharesInfo.decimals;
 						return {
-							amountInLP: (participatedLP.amount / 10 ** 18) * pricePerLPToken,
-							lpPendingShare: participatedLP.pendingShare,
+							amountInLP:
+								(participatedLP.amount / 10 ** BDOSharesInfo.decimals) *
+								pricePerLPToken,
+							pendingShare: pendingShareAmount,
+							valuePendingShare:
+								pendingShareAmount * BDOSharesInfo.pricePerToken,
 						};
 					})
 				);
 			});
 			return Promise.all(participatedLPsPricePromise).then(
 				(totalAmountInLP) => {
+					const pendingShareAmount = totalAmountInLP.reduce(
+						(acc, currentValue) => acc + currentValue.pendingShare,
+						0
+					);
 					return {
 						amountInLP: totalAmountInLP.reduce(
 							(acc, currentValue) => acc + currentValue.amountInLP,
 							0
 						),
-						lpPendingShare: totalAmountInLP.lpPendingShare,
+						pendingShare: pendingShareAmount,
+						valuePendingShare: pendingShareAmount * BDOSharesInfo.pricePerToken,
+						banksParticipated: totalAmountInLP,
 					};
 				}
 			);
@@ -71,5 +83,5 @@ let getLPsParticipated = function (web3, userAddress, poolLength) {
 };
 
 module.exports = {
-	calculateAmountInLP,
+	getLPInformation,
 };

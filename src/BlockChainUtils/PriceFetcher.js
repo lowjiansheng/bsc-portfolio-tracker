@@ -2,7 +2,6 @@
 
 const IPancakeFactory = require("../../build/contracts/IPancakeFactory.json");
 const LiquidityPairFetcher = require("./LiquidityPairFetcher");
-const TokenInfoFetcher = require("./TokenInfoFetcher");
 
 const BlockChainUtilsConstants = require("./constants");
 

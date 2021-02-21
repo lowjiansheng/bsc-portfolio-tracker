@@ -29,9 +29,13 @@ function ProtocolFactory(web3, userAddress) {
 								amountInProtocol.totalAmount
 							).toFixed(2),
 							protocolName: protocol.protocolName,
+							totalDeposits: amountInProtocol.totalDeposits,
+							pendingEarn: amountInProtocol.pendingEarn,
+							protocolInformation: amountInProtocol.protocolInformation,
 						};
 					})
-					.catch(() => {
+					.catch((err) => {
+						console.log(err);
 						return {
 							isSuccess: false,
 							amountInProtocol: 0.0,
@@ -42,7 +46,7 @@ function ProtocolFactory(web3, userAddress) {
 		}
 
 		Promise.all(amountLockedInProtocol).then((amountLockedInProtocols) => {
-			console.log(amountLockedInProtocols);
+			console.log(JSON.stringify(amountLockedInProtocols));
 			const totalAmountLocked = amountLockedInProtocols.reduce(
 				(acc, curr) => acc + parseFloat(curr.amountInProtocol),
 				0
