@@ -11,7 +11,7 @@ function Goose(web3) {
 
 	this.protocolName = "Goose Finance";
 
-	this.calculateTotalDollarAmountInProtocol = function (userAddress) {
+	this.getProtocolInformation = function (userAddress) {
 		return this.getLPsParticipated(userAddress).then((participatedLPs) => {
 			let participatedLPsPricePromise = [];
 			participatedLPs.forEach((participatedLP) => {
@@ -55,9 +55,11 @@ function Goose(web3) {
 			});
 			return Promise.all(participatedLPsPricePromise).then(
 				(totalAmountInLP) => {
-					return totalAmountInLP.reduce(
-						(acc, currentValue) => acc + currentValue
-					);
+					return {
+						totalAmount: totalAmountInLP.reduce(
+							(acc, currentValue) => acc + currentValue
+						),
+					};
 				}
 			);
 		});

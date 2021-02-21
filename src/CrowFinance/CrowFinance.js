@@ -8,7 +8,7 @@ function CrowFinance(web3) {
 
 	this.protocolName = "CrowFinance";
 
-	this.calculateTotalDollarAmountInProtocol = function (userAddress) {
+	this.getProtocolInformation = function (userAddress) {
 		return this.getLPsParticipated(userAddress).then((participatedLPs) => {
 			let participatedLPsPricePromise = [];
 			participatedLPs.forEach((participatedLP) => {
@@ -24,10 +24,12 @@ function CrowFinance(web3) {
 			});
 			return Promise.all(participatedLPsPricePromise).then(
 				(totalAmountInLP) => {
-					return totalAmountInLP.reduce(
-						(acc, currentValue) => acc + currentValue,
-						0
-					);
+					return {
+						totalAmount: totalAmountInLP.reduce(
+							(acc, currentValue) => acc + currentValue,
+							0
+						),
+					};
 				}
 			);
 		});

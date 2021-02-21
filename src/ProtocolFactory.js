@@ -21,11 +21,13 @@ function ProtocolFactory(web3, userAddress) {
 			const protocol = this.protocolList[i];
 			amountLockedInProtocol.push(
 				protocol
-					.calculateTotalDollarAmountInProtocol(userAddress)
+					.getProtocolInformation(userAddress)
 					.then((amountInProtocol) => {
 						return {
 							isSuccess: true,
-							amountInProtocol: parseFloat(amountInProtocol).toFixed(2),
+							amountInProtocol: parseFloat(
+								amountInProtocol.totalAmount
+							).toFixed(2),
 							protocolName: protocol.protocolName,
 						};
 					})
