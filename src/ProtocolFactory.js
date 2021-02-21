@@ -20,12 +20,23 @@ function ProtocolFactory(web3, userAddress) {
         
         for (let i = 0 ; i < this.protocolList.length; i++) {
             const protocol = this.protocolList[i]
-            amountLockedInProtocol.push(protocol.calculateTotalDollarAmountInProtocol(userAddress).then((amountInProtocol) => {
-                return {
-                    amountInProtocol: parseFloat(amountInProtocol).toFixed(2),
-                    protocolName: protocol.protocolName
-                }
-            }))
+            amountLockedInProtocol.push(
+                protocol.calculateTotalDollarAmountInProtocol(userAddress)
+                .then((amountInProtocol) => {
+                    return {
+                        isSuccess: true,
+                        amountInProtocol: parseFloat(amountInProtocol).toFixed(2),
+                        protocolName: protocol.protocolName
+                    }
+                })
+                .catch(() => {
+                    return {
+                        isSuccess: false,
+                        amountInProtocol: 0.0,
+                        protocolName: protocol.protocolName
+                    }
+                })
+            )
         } 
  
         Promise.all(amountLockedInProtocol).then((amountLockedInProtocols) => {
