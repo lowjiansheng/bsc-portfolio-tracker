@@ -62,6 +62,8 @@ function AutoFarm(web3) {
 						totalAmount: totalAmountInLP.reduce(
 							(acc, currentValue) => acc + currentValue
 						),
+						totalDeposits: 0,
+						pendingEarn: 0,
 					};
 				}
 			);

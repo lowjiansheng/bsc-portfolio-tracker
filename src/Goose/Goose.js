@@ -82,7 +82,7 @@ function Goose(web3) {
 							0
 						);
 						return {
-							totalAmount: totalValueDeposits,
+							totalAmount: totalValueDeposits + pendingEarn,
 							totalDeposits: totalValueDeposits,
 							pendingEarn: pendingEarn,
 							protocolInformation: {
