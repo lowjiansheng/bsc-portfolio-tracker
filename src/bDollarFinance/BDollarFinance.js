@@ -1,8 +1,8 @@
-const IBdoSharesFarm = require("../../build/contracts/IBdoSharesFarm.json");
 const IBdoBoardRoom = require("../../build/contracts/IBdoBoardRoom.json");
 const BDO_CONSTANTS = require("./constants");
 
-const LPTokenCalculator = require("../LPTokenCalculator");
+const BDOLiquidityPool = require("./SharesBank");
+const BDOBoardroom = require("./Boardroom");
 
 const TokenInfoFetcher = require("../BlockChainUtils/TokenInfoFetcher");
 const PriceFetcher = require("../BlockChainUtils/PriceFetcher");
@@ -15,111 +15,67 @@ function BDollarFinance(web3) {
 
 	this.web3 = web3;
 
-	this.calculateTotalDollarAmountInProtocol = function (userAddress) {
-		return this.sumUpProtocolValue(
-			this.calculateAmountInLP(userAddress),
-			this.calculateAmountInBoardRoomStakes(userAddress)
-		);
-	};
-
-	this.calculateAmountInLP = function (userAddress) {
-		return this.getLPsParticipated(userAddress).then((participatedLPs) => {
-			let participatedLPsPricePromise = [];
-			participatedLPs.forEach((participatedLP) => {
-				LPTokenCalculator.getAverageAmountDepositedIntoLP(
-					this.web3,
-					userAddress,
-					participatedLP.lpToken
-				);
-				participatedLPsPricePromise.push(
-					LPTokenCalculator.getPriceOfLPToken(
-						this.web3,
-						participatedLP.lpToken
-					).then((pricePerLPToken) => {
-						return (participatedLP.amount / 10 ** 18) * pricePerLPToken;
-					})
-				);
-			});
-			return Promise.all(participatedLPsPricePromise).then(
-				(totalAmountInLP) => {
-					return totalAmountInLP.reduce(
-						(acc, currentValue) => acc + currentValue,
-						0
-					);
-				}
-			);
-		});
-	};
-
-	this.getLPsParticipated = function (userAddress) {
-		let contract = new this.web3.eth.Contract(
-			IBdoSharesFarm,
-			BDO_CONSTANTS.BDO_SHARE_POOL_CONTRACT
-		);
-		let poolInfoRequests = [];
-		for (let i = 0; i < this.poolLength; i++) {
-			poolInfoRequests.push(contract.methods.userInfo(i, userAddress).call());
-		}
-		return Promise.all(poolInfoRequests).then((userPoolInfos) => {
-			let participatedPoolInfoPromise = [];
-			for (let i = 0; i < this.poolLength; i++) {
-				if (userPoolInfos[i].amount !== "0") {
-					participatedPoolInfoPromise.push(
-						contract.methods
-							.poolInfo(i)
-							.call()
-							.then((poolInfo) => {
-								poolInfo.amount = userPoolInfos[i].amount;
-								poolInfo.rewardDebt = userPoolInfos[i].rewardDebt;
-								return poolInfo;
-							})
-					);
-				}
-			}
-			return Promise.all(participatedPoolInfoPromise);
-		});
-	};
-
-	this.sumUpProtocolValue = function (valueFromLP, valueFromStake) {
-		return valueFromLP.then((LPValue) => {
-			return valueFromStake.then((stakeValue) => {
-				return LPValue + stakeValue;
-			});
-		});
-	};
-
-	this.calculateAmountInBoardRoomStakes = function (userAddress) {
-		return this.getBoardRoomStakes(userAddress).then((boardRoomStakes) => {
-			return TokenInfoFetcher.getTokenInfoFromAddress(
+	this.getProtocolInformation = function (userAddress) {
+		return TokenInfoFetcher.getTokenInfoWithPriceFromAddress(
+			this.web3,
+			BDO_CONSTANTS.sBDO_TOKEN_CONTRACT
+		).then((BDOSharesInfo) => {
+			return TokenInfoFetcher.getTokenInfoWithPriceFromAddress(
 				this.web3,
 				BDO_CONSTANTS.BDO_TOKEN_CONTRACT
-			).then((bdoInfo) => {
-				return TokenInfoFetcher.getTokenInfoFromAddress(
+			).then((BDOInfo) => {
+				return BDOLiquidityPool.getLPInformation(
 					this.web3,
-					BDO_CONSTANTS.sBDO_TOKEN_CONTRACT
-				).then((sBDOInfo) => {
-					return PriceFetcher.getPriceByTokenAddress(
-						this.web3,
-						BDO_CONSTANTS.BDO_TOKEN_CONTRACT
-					).then((bdoPrice) => {
-						return PriceFetcher.getPriceByTokenAddress(
-							this.web3,
-							BDO_CONSTANTS.sBDO_TOKEN_CONTRACT
-						).then((sBDOPrice) => {
-							const amountOfsBDO =
-								boardRoomStakes.sBDOBalance / 10 ** sBDOInfo.decimals;
-							const amountOfBDO =
-								boardRoomStakes.BDOEarned / 10 ** bdoInfo.decimals;
-							return amountOfBDO * bdoPrice + amountOfsBDO * sBDOPrice;
-						});
+					userAddress,
+					this.poolLength,
+					BDOSharesInfo
+				).then((lpInformation) => {
+					return this.calculateAmountInBoardRoomStakes(
+						userAddress,
+						BDOSharesInfo,
+						BDOInfo
+					).then((stakeValue) => {
+						return {
+							totalAmount: lpInformation.amountInLP + stakeValue.totalAmount,
+							totalDeposits:
+								stakeValue.valueBDOSharesStaked + lpInformation.amountInLP,
+							pendingEarn:
+								stakeValue.valueBDOEarned + lpInformation.valuePendingShare,
+							protocolInformation: {
+								boardRoomInformation: stakeValue,
+								lpInformation: lpInformation,
+							},
+						};
 					});
 				});
 			});
 		});
 	};
 
+	// TODO: remove away these methods
+	this.calculateAmountInBoardRoomStakes = function (
+		userAddress,
+		BDOSharesInfo,
+		BDOInfo
+	) {
+		return this.getBoardRoomInformation(userAddress).then((boardRoomStakes) => {
+			const amountOfsBDO =
+				boardRoomStakes.sBDOBalance / 10 ** BDOSharesInfo.decimals;
+			const amountOfBDO = boardRoomStakes.BDOEarned / 10 ** BDOInfo.decimals;
+			return {
+				totalAmount:
+					amountOfBDO * BDOInfo.pricePerToken +
+					amountOfsBDO * BDOSharesInfo.pricePerToken,
+				amountBDOSharesStaked: amountOfsBDO,
+				valueBDOSharesStaked: amountOfsBDO * BDOSharesInfo.pricePerToken,
+				amountBDOEarned: amountOfBDO,
+				valueBDOEarned: amountOfBDO * BDOInfo.pricePerToken,
+			};
+		});
+	};
+
 	// users are able to stake their sBDO shares to earn BDOs according to bDollar's protocol
-	this.getBoardRoomStakes = function (userAddress) {
+	this.getBoardRoomInformation = function (userAddress) {
 		let contract = new this.web3.eth.Contract(
 			IBdoBoardRoom,
 			BDO_CONSTANTS.BDO_BOARDROOM_STAKE_CONTRACT

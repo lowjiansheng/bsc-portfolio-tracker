@@ -2,6 +2,7 @@ const BDollarFinance = require("./bDollarFinance/BDollarFinance");
 const CrowFinance = require("./CrowFinance/CrowFinance");
 const AutoFarm = require("./AutoFarm/AutoFarm");
 const GooseFinance = require("./Goose/Goose");
+const PancakeBunny = require("./PancakeBunny/PancakeBunny");
 
 function ProtocolFactory(web3, userAddress) {
 	this.web3 = web3;
@@ -12,6 +13,7 @@ function ProtocolFactory(web3, userAddress) {
 		new CrowFinance.CrowFinance(this.web3),
 		new AutoFarm.AutoFarm(this.web3),
 		new GooseFinance.Goose(this.web3),
+		new PancakeBunny.PancakeBunny(this.web3),
 	];
 
 	this.fetchAccountValuesInProtocol = function () {
@@ -21,15 +23,21 @@ function ProtocolFactory(web3, userAddress) {
 			const protocol = this.protocolList[i];
 			amountLockedInProtocol.push(
 				protocol
-					.calculateTotalDollarAmountInProtocol(userAddress)
+					.getProtocolInformation(userAddress)
 					.then((amountInProtocol) => {
 						return {
 							isSuccess: true,
-							amountInProtocol: parseFloat(amountInProtocol).toFixed(2),
+							amountInProtocol: parseFloat(
+								amountInProtocol.totalAmount
+							).toFixed(2),
 							protocolName: protocol.protocolName,
+							totalDeposits: amountInProtocol.totalDeposits,
+							pendingEarn: amountInProtocol.pendingEarn,
+							protocolInformation: amountInProtocol.protocolInformation,
 						};
 					})
-					.catch(() => {
+					.catch((err) => {
+						console.log(err);
 						return {
 							isSuccess: false,
 							amountInProtocol: 0.0,
@@ -39,13 +47,28 @@ function ProtocolFactory(web3, userAddress) {
 			);
 		}
 
-		Promise.all(amountLockedInProtocol).then((amountLockedInProtocols) => {
-			console.log(amountLockedInProtocols);
-			const totalAmountLocked = amountLockedInProtocols.reduce(
+		Promise.all(amountLockedInProtocol).then((protocolResults) => {
+			const totalAmountLocked = protocolResults.reduce(
 				(acc, curr) => acc + parseFloat(curr.amountInProtocol),
 				0
 			);
-			console.log("Total amount locked in protocols = US$" + totalAmountLocked);
+			const totalValuePendingEarn = protocolResults.reduce(
+				(acc, curr) => acc + parseFloat(curr.pendingEarn),
+				0
+			);
+			const totalValueDeposits = protocolResults.reduce(
+				(acc, curr) => acc + parseFloat(curr.totalDeposits),
+				0
+			);
+			let result = {
+				totalValueLocked: totalAmountLocked,
+				totalValuePendingEarn: totalValuePendingEarn, // TODO
+				totalValueDeposits: totalValueDeposits, // TODO
+				walletAddress: userAddress,
+				protocols: protocolResults,
+			};
+
+			console.log(JSON.stringify(result, null, 4));
 		});
 	};
 }

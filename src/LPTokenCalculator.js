@@ -48,6 +48,7 @@ var getPriceOfLPToken = function (web3, pairAddress) {
 	});
 };
 
+// This is not a very efficient method and should therefore be refrained from being called
 var isLPToken = function (web3, address) {
 	return LiquidityPairFetcher.isTokenAnLPToken(web3, address);
 };
