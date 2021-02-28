@@ -5,6 +5,8 @@ const AutofarmConstants = require("./constants");
 const LPTokenCalculator = require("../LPTokenCalculator");
 const PriceFetcher = require("../BlockChainUtils/PriceFetcher");
 const TokenInfoFetcher = require("../BlockChainUtils/TokenInfoFetcher");
+const BSCScanAPI = require("../BlockChainUtils/BSCScanAPI");
+const PoolsUtils = require("./PoolsUtils");
 
 function AutoFarm(web3) {
 	this.web3 = web3;
@@ -12,62 +14,106 @@ function AutoFarm(web3) {
 	this.protocolName = "AutoFarm";
 
 	this.getProtocolInformation = function (userAddress) {
-		return this.getLPsParticipated(userAddress).then((participatedLPs) => {
-			let participatedLPsPricePromise = [];
-			participatedLPs.forEach((participatedLP) => {
-				//LPTokenCalculator.getAverageAmountDepositedIntoLP(this.web3, userAddress, participatedLP.lpToken)
+		return BSCScanAPI.getBEP20TransactionsByAddress(userAddress).then(
+			(transactionResults) => {
+				//console.log(transactionResults);
+				return this.getLPsParticipated(userAddress).then((participatedLPs) => {
+					let participatedLPsPricePromise = [];
+					participatedLPs.forEach((participatedLP) => {
+						const depositValue = PoolsUtils.calculatePoolDeposits(
+							transactionResults,
+							AutofarmConstants.AUTOFARM_CONTRACT,
+							participatedLP.want
+						);
+						participatedLPsPricePromise.push(
+							// TODO: refactor this. too many repetitive code
+							LPTokenCalculator.isLPToken(this.web3, participatedLP.want).then(
+								(isLP) => {
+									if (isLP) {
+										return LPTokenCalculator.getPriceOfLPToken(
+											this.web3,
+											participatedLP.want
+										).then((pricePerLPToken) => {
+											return TokenInfoFetcher.getTokenInfoFromAddress(
+												this.web3,
+												participatedLP.want
+											).then((tokenInfo) => {
+												const totalAmount =
+													(participatedLP.amount / 10 ** tokenInfo.decimals) *
+													pricePerLPToken;
+												const amountDeposited =
+													depositValue / 10 ** tokenInfo.decimals;
+												const amountDepositedValue =
+													amountDeposited * pricePerLPToken;
+												const amountEarned =
+													(participatedLP.amount - depositValue) /
+													10 ** tokenInfo.decimals;
+												const amountEarnedValue =
+													amountEarned * pricePerLPToken;
+												participatedLP.amountDeposited = amountDeposited;
+												participatedLP.amountDepositedValue = amountDepositedValue;
+												participatedLP.amountEarned = amountEarned;
+												participatedLP.amountEarnedValue = amountEarnedValue;
+												return {
+													totalAmount: totalAmount,
+													participatedLP: participatedLP,
+												};
+											});
+										});
+									} else {
+										return TokenInfoFetcher.getTokenInfoWithPriceFromAddress(
+											this.web3,
+											participatedLP.want
+										).then((tokenInfo) => {
+											const totalAmount =
+												(participatedLP.amount / 10 ** tokenInfo.decimals) *
+												tokenInfo.pricePerToken;
+											const amountDeposited =
+												depositValue / 10 ** tokenInfo.decimals;
+											const amountDepositedValue =
+												amountDeposited * tokenInfo.pricePerToken;
+											const amountEarned =
+												(participatedLP.amount - depositValue) /
+												10 ** tokenInfo.decimals;
+											const amountEarnedValue =
+												amountEarned * tokenInfo.pricePerToken;
+											participatedLP.amountDeposited = amountDeposited;
+											participatedLP.amountDepositedValue = amountDepositedValue;
+											participatedLP.amountEarned = amountEarned;
+											participatedLP.amountEarnedValue = amountEarnedValue;
+											return {
+												totalAmount: totalAmount,
+												participatedLP: participatedLP,
+											};
+										});
+									}
+								}
+							)
+						);
+					});
+					return Promise.all(participatedLPsPricePromise).then(
+						(totalAmountInLP) => {
+							const listOfParticipatedPools = [];
+							totalAmountInLP.forEach((pool) => {
+								listOfParticipatedPools.push(pool.participatedLP);
+							});
 
-				// some of the contracts are ERC20 tokens, some are LP tokens. how to differentiate hmm...
-				participatedLPsPricePromise.push(
-					LPTokenCalculator.isLPToken(this.web3, participatedLP.want).then(
-						(isLP) => {
-							if (isLP) {
-								return LPTokenCalculator.getPriceOfLPToken(
-									this.web3,
-									participatedLP.want
-								).then((pricePerLPToken) => {
-									return TokenInfoFetcher.getTokenInfoFromAddress(
-										this.web3,
-										participatedLP.want
-									).then((tokenInfo) => {
-										return (
-											(participatedLP.amount / 10 ** tokenInfo.decimals) *
-											pricePerLPToken
-										);
-									});
-								});
-							} else {
-								return PriceFetcher.getPriceByTokenAddress(
-									this.web3,
-									participatedLP.want
-								).then((pricePerToken) => {
-									return TokenInfoFetcher.getTokenInfoFromAddress(
-										this.web3,
-										participatedLP.want
-									).then((tokenInfo) => {
-										return (
-											(participatedLP.amount / 10 ** tokenInfo.decimals) *
-											pricePerToken
-										);
-									});
-								});
-							}
+							return {
+								totalAmount: totalAmountInLP.reduce(
+									(acc, currentValue) => acc + currentValue.totalAmount,
+									0
+								),
+								totalDeposits: 0,
+								pendingEarn: 0,
+								protocolInformation: {
+									participatedPools: listOfParticipatedPools,
+								},
+							};
 						}
-					)
-				);
-			});
-			return Promise.all(participatedLPsPricePromise).then(
-				(totalAmountInLP) => {
-					return {
-						totalAmount: totalAmountInLP.reduce(
-							(acc, currentValue) => acc + currentValue
-						),
-						totalDeposits: 0,
-						pendingEarn: 0,
-					};
-				}
-			);
-		});
+					);
+				});
+			}
+		);
 	};
 
 	this.getLPsParticipated = function (userAddress) {
