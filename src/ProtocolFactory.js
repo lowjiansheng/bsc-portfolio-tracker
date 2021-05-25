@@ -4,6 +4,7 @@ const AutoFarm = require("./AutoFarm/AutoFarm");
 const GooseFinance = require("./Goose/Goose");
 const PancakeBunny = require("./PancakeBunny/PancakeBunny");
 const VikingSwap = require("./VikingSwap/VikingSwap");
+const PancakeSwap = require("./PancakeSwap/PancakeSwap");
 
 function ProtocolFactory(web3, userAddress) {
 	this.web3 = web3;
@@ -16,6 +17,7 @@ function ProtocolFactory(web3, userAddress) {
 		new GooseFinance.Goose(this.web3),
 		new PancakeBunny.PancakeBunny(this.web3),
 		new VikingSwap.VikingSwap(this.web3),
+		new PancakeSwap.PancakeSwap(this.web3),
 	];
 
 	this.fetchAccountValuesInProtocol = function () {

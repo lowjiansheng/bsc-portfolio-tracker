@@ -97,7 +97,7 @@ var getAmountDepositedIntoPair = function (web3, userAddress, pairAddress) {
 	);
 
 	getBEP20TransactionsByAddress(userAddress).then((transactionResults) => {
-		//console.log(transactionResults.result)
+		console.log(transactionResults.result);
 		let transactionsInPair = transactionResults.result.filter((history) => {
 			return history.to.toLowerCase() === pairAddress.toLowerCase();
 		});
