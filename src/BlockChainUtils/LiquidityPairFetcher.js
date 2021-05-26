@@ -6,7 +6,7 @@ const secrets = require("../secrets/secrets");
 
 const Constants = require("./constants");
 const http = require("https");
-const { PANCAKESWAP_ROUTER_CONTRACT } = require("./constants");
+const { PANCAKESWAP_ROUTER_CONTRACT, WBNB_ADDRESS } = require("./constants");
 const { runInNewContext } = require("vm");
 
 var getPairInformationWithPairAddress = function (
@@ -171,7 +171,7 @@ function getDepositTxHashes(
 	return new Promise((resolve, reject) => {
 		// identify amount of tokens deposited into the pool
 		// the tx would include a sending of the pair token to user address
-		const potentialDepositTxHashes = addressTransactions["result"].filter(
+		const txHashesThatSendLPToUser = addressTransactions["result"].filter(
 			(result) => {
 				return (
 					result["contractAddress"] === pairAddress.toLowerCase() &&
@@ -179,7 +179,7 @@ function getDepositTxHashes(
 				);
 			}
 		);
-		if (potentialDepositTxHashes.length === 0) {
+		if (txHashesThatSendLPToUser.length === 0) {
 			console.log(
 				"cannot find tx with lp deposit. lp-token might be deposited from other wallets"
 			);
@@ -187,10 +187,51 @@ function getDepositTxHashes(
 		} else {
 			//0x43d6b45b2acb991db412bb3ccc80c611b7bee74c9607b5da1fb54b0753e5679d
 			let potentialDepositTxHashesPromise = [];
-			for (let i = 0; i < potentialDepositTxHashes.length; i++) {
+			for (let i = 0; i < txHashesThatSendLPToUser.length; i++) {
+				let potentialDepositTransactionGroup = addressTransactions[
+					"result"
+				].filter((transaction) => {
+					return transaction["hash"] === txHashesThatSendLPToUser[i]["hash"];
+				});
+
+				if (potentialDepositTransactionGroup.length === 3) {
+					if (
+						potentialDepositTransactionGroup[0][
+							"contractAddress"
+						].toLowerCase() === token0Address.toLowerCase() &&
+						potentialDepositTransactionGroup[1][
+							"contractAddress"
+						].toLowerCase() === token1Address.toLowerCase()
+					) {
+						let res = {
+							amountToken0: potentialDepositTransactionGroup[0]["value"],
+							amountToken1: potentialDepositTransactionGroup[1]["value"],
+						};
+						console.log(res);
+					} else if (
+						potentialDepositTransactionGroup[1][
+							"contractAddress"
+						].toLowerCase() === token0Address.toLowerCase() &&
+						potentialDepositTransactionGroup[0][
+							"contractAddress"
+						].toLowerCase() === token1Address.toLowerCase()
+					) {
+						let res = {
+							amountToken0: potentialDepositTransactionGroup[1]["value"],
+							amountToken1: potentialDepositTransactionGroup[0]["value"],
+						};
+						console.log(res);
+					} else {
+						continue;
+					}
+				} else if (potentialDepositTransactionGroup.length === 2) {
+				}
+
+				// in this case will definitely have 3 transactions
+
 				potentialDepositTxHashesPromise.push(
 					BSCScanUtils.getBscScanInternalTransactionsBasedOnTxHash(
-						potentialDepositTxHashes[i]["hash"]
+						txHashesThatSendLPToUser[i]["hash"]
 					).then((internalHashes) => {
 						const filteredInternalHashes = internalHashes["result"].filter(
 							(result) => {
@@ -199,7 +240,7 @@ function getDepositTxHashes(
 						);
 						console.log(filteredInternalHashes);
 						if (filteredInternalHashes.length > 0) {
-							return potentialDepositTxHashes[i]["hash"];
+							return txHashesThatSendLPToUser[i]["hash"];
 						} else {
 							return;
 						}
