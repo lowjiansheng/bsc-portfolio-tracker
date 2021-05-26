@@ -12,10 +12,11 @@ function PancakeSwap(web3) {
 	this.protocolName = "Pancake Swap";
 
 	// TODO: refactor this method. Too much repetitive code.
-	this.getProtocolInformation = function (userAddress) {
+	this.getProtocolInformation = function (userAddress, accountTransactions) {
 		return TokenInfoFetcher.getTokenInfoWithPriceFromAddress(
 			this.web3,
-			CakeConstants.CAKE_TOKEN_ADDRESS
+			CakeConstants.CAKE_TOKEN_ADDRESS,
+			accountTransactions
 		).then((cakeTokenInfo) => {
 			return this.getLPsParticipated(userAddress).then((participatedPools) => {
 				let participatedPoolsResultsPromise = [];
@@ -25,10 +26,12 @@ function PancakeSwap(web3) {
 							this.web3,
 							participatedPool.lpToken
 						).then((isLP) => {
+							console.log(participatedPool.lpToken);
 							if (isLP) {
 								return LPTokenCalculator.getPriceOfLPToken(
 									this.web3,
-									participatedPool.lpToken
+									participatedPool.lpToken,
+									accountTransactions
 								).then((pricePerLPToken) => {
 									return TokenInfoFetcher.getTokenInfoFromAddress(
 										this.web3,
@@ -52,7 +55,8 @@ function PancakeSwap(web3) {
 							} else {
 								return TokenInfoFetcher.getTokenInfoWithPriceFromAddress(
 									this.web3,
-									participatedPool.lpToken
+									participatedPool.lpToken,
+									accountTransactions
 								).then((tokenInfo) => {
 									const totalAmountDeposit =
 										participatedPool.amount / 10 ** tokenInfo.decimals;

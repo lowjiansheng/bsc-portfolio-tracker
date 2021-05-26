@@ -11,7 +11,7 @@ function AutoFarm(web3) {
 
 	this.protocolName = "AutoFarm";
 
-	this.getProtocolInformation = function (userAddress) {
+	this.getProtocolInformation = function (userAddress, accountTransactions) {
 		return this.getLPsParticipated(userAddress).then((participatedLPs) => {
 			let participatedLPsPricePromise = [];
 			participatedLPs.forEach((participatedLP) => {
@@ -24,7 +24,8 @@ function AutoFarm(web3) {
 							if (isLP) {
 								return LPTokenCalculator.getPriceOfLPToken(
 									this.web3,
-									participatedLP.want
+									participatedLP.want,
+									accountTransactions
 								).then((pricePerLPToken) => {
 									return TokenInfoFetcher.getTokenInfoFromAddress(
 										this.web3,

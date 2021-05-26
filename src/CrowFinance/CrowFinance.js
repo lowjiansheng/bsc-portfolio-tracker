@@ -9,7 +9,7 @@ function CrowFinance(web3) {
 
 	this.protocolName = "CrowFinance";
 
-	this.getProtocolInformation = function (userAddress) {
+	this.getProtocolInformation = function (userAddress, accountTransactions) {
 		const contract = new this.web3.eth.Contract(
 			ICrowFarm,
 			CROW_CONSTANTS.CROW_FARM_ADDRESS
@@ -27,7 +27,8 @@ function CrowFinance(web3) {
 						participatedLPsPricePromise.push(
 							LPTokenCalculator.getPriceOfLPToken(
 								this.web3,
-								participatedLP.lpToken
+								participatedLP.lpToken,
+								accountTransactions
 							).then((pricePerLPToken) => {
 								let pendingCrowAmount =
 									parseFloat(participatedLP.pendingCrow) /

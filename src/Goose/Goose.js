@@ -12,7 +12,7 @@ function Goose(web3) {
 	this.protocolName = "Goose Finance";
 
 	// TODO: refactor this method. Too much repetitive code.
-	this.getProtocolInformation = function (userAddress) {
+	this.getProtocolInformation = function (userAddress, accountTransactions) {
 		return TokenInfoFetcher.getTokenInfoWithPriceFromAddress(
 			this.web3,
 			GooseConstants.EGG_TOKEN_ADDRESS
@@ -28,7 +28,8 @@ function Goose(web3) {
 							if (isLP) {
 								return LPTokenCalculator.getPriceOfLPToken(
 									this.web3,
-									participatedPool.lpToken
+									participatedPool.lpToken,
+									accountTransactions
 								).then((pricePerLPToken) => {
 									return TokenInfoFetcher.getTokenInfoFromAddress(
 										this.web3,

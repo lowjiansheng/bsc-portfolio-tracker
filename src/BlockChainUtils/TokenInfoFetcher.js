@@ -1,17 +1,23 @@
 const ERC20 = require("../../build/contracts/IERC20.json");
 const PriceFetcher = require("./PriceFetcher");
 
-let getTokenInfoWithPriceFromAddress = function (web3, tokenAddress) {
+let getTokenInfoWithPriceFromAddress = function (
+	web3,
+	tokenAddress,
+	accountTransactions
+) {
 	return getTokenInfoFromAddress(web3, tokenAddress).then((tokenInfo) => {
-		return PriceFetcher.getPriceByTokenAddress(web3, tokenAddress).then(
-			(tokenPrice) => {
-				return {
-					decimals: tokenInfo.decimals,
-					symbol: tokenInfo.symbol,
-					pricePerToken: tokenPrice,
-				};
-			}
-		);
+		return PriceFetcher.getPriceByTokenAddress(
+			web3,
+			tokenAddress,
+			accountTransactions
+		).then((tokenPrice) => {
+			return {
+				decimals: tokenInfo.decimals,
+				symbol: tokenInfo.symbol,
+				pricePerToken: tokenPrice,
+			};
+		});
 	});
 };
 

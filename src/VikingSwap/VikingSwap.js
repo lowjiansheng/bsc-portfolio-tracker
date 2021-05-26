@@ -11,7 +11,7 @@ function VikingSwap(web3) {
 	this.protocolName = "VikingSwap";
 
 	// TODO: refactor this method. Too much repetitive code.
-	this.getProtocolInformation = function (userAddress) {
+	this.getProtocolInformation = function (userAddress, accountTransactions) {
 		return TokenInfoFetcher.getTokenInfoWithPriceFromAddress(
 			this.web3,
 			VikingConstants.VIKING_TOKEN_ADDRESS
@@ -27,7 +27,8 @@ function VikingSwap(web3) {
 							if (isLP) {
 								return LPTokenCalculator.getPriceOfLPToken(
 									this.web3,
-									participatedPool.lpToken
+									participatedPool.lpToken,
+									accountTransactions
 								).then((pricePerLPToken) => {
 									return TokenInfoFetcher.getTokenInfoFromAddress(
 										this.web3,

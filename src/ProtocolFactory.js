@@ -11,23 +11,23 @@ function ProtocolFactory(web3, userAddress) {
 
 	// all the supported protocols
 	this.protocolList = [
-		new BDollarFinance.BDollarFinance(this.web3),
-		new CrowFinance.CrowFinance(this.web3),
-		new AutoFarm.AutoFarm(this.web3),
-		new GooseFinance.Goose(this.web3),
-		new PancakeBunny.PancakeBunny(this.web3),
-		new VikingSwap.VikingSwap(this.web3),
+		//new BDollarFinance.BDollarFinance(this.web3),
+		//new CrowFinance.CrowFinance(this.web3),
+		//new AutoFarm.AutoFarm(this.web3),
+		//new GooseFinance.Goose(this.web3),
+		//new PancakeBunny.PancakeBunny(this.web3),
+		//new VikingSwap.VikingSwap(this.web3),
 		new PancakeSwap.PancakeSwap(this.web3),
 	];
 
-	this.fetchAccountValuesInProtocol = function () {
+	this.fetchAccountValuesInProtocol = function (accountTransactions) {
 		let amountLockedInProtocol = [];
 
 		for (let i = 0; i < this.protocolList.length; i++) {
 			const protocol = this.protocolList[i];
 			amountLockedInProtocol.push(
 				protocol
-					.getProtocolInformation(userAddress)
+					.getProtocolInformation(userAddress, accountTransactions)
 					.then((amountInProtocol) => {
 						return {
 							isSuccess: true,

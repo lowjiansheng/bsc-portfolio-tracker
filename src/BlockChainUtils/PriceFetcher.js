@@ -7,7 +7,11 @@ const BlockChainUtilsConstants = require("./constants");
 
 const BUSD_CONTRACT = "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56";
 
-var getPriceByTokenAddress = function (web3, tokenAddress) {
+var getPriceByTokenAddress = function (
+	web3,
+	tokenAddress,
+	accountTransactions
+) {
 	if (tokenAddress === BUSD_CONTRACT) {
 		return new Promise((resolutionFunc, rejectionFunc) => {
 			resolutionFunc("1");
@@ -24,7 +28,8 @@ var getPriceByTokenAddress = function (web3, tokenAddress) {
 		.then((pairAddress) => {
 			return LiquidityPairFetcher.getPairInformationWithPairAddress(
 				web3,
-				pairAddress
+				pairAddress,
+				accountTransactions
 			).then((reserves) => {
 				// we want to match token with the correct reserve
 				let bUSDReserve;

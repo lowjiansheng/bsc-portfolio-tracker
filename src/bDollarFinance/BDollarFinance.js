@@ -15,7 +15,7 @@ function BDollarFinance(web3) {
 
 	this.web3 = web3;
 
-	this.getProtocolInformation = function (userAddress) {
+	this.getProtocolInformation = function (userAddress, accountTransactions) {
 		return TokenInfoFetcher.getTokenInfoWithPriceFromAddress(
 			this.web3,
 			BDO_CONSTANTS.sBDO_TOKEN_CONTRACT

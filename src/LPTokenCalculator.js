@@ -2,10 +2,11 @@ const PriceFetcher = require("./BlockChainUtils/PriceFetcher");
 const LiquidityPairFetcher = require("./BlockChainUtils/LiquidityPairFetcher");
 const TokenInfoFetcher = require("./BlockChainUtils/TokenInfoFetcher");
 
-var getPriceOfLPToken = function (web3, pairAddress) {
+var getPriceOfLPToken = function (web3, pairAddress, accountTransactions) {
 	return LiquidityPairFetcher.getPairInformationWithPairAddress(
 		web3,
-		pairAddress
+		pairAddress,
+		accountTransactions
 	).then((pairInfo) => {
 		const totalLPSupply = pairInfo.lpTotalSupply / 10 ** pairInfo.lpDecimals;
 		const ratioOf1LPToTotalSuppler = 1 / totalLPSupply;
@@ -21,25 +22,31 @@ var getPriceOfLPToken = function (web3, pairAddress) {
 					web3,
 					pairAddress
 				).then((factoryAddress) => {
-					const numReserve0In1LPToken =
-						(ratioOf1LPToTotalSuppler * pairInfo.reserves.reserve0) /
-						10 ** token0Info.decimals;
-					const numReserve1In1LPToken =
-						(ratioOf1LPToTotalSuppler * pairInfo.reserves.reserve1) /
-						10 ** token1Info.decimals;
-
-					return PriceFetcher.getPriceByTokenAddress(
+					return LiquidityPairFetcher.getAmountDepositedIntoPair(
 						web3,
-						pairInfo.token0Address
-					).then((priceToken0) => {
+						pairAddress,
+						accountTransactions
+					).then(() => {
+						const numReserve0In1LPToken =
+							(ratioOf1LPToTotalSuppler * pairInfo.reserves.reserve0) /
+							10 ** token0Info.decimals;
+						const numReserve1In1LPToken =
+							(ratioOf1LPToTotalSuppler * pairInfo.reserves.reserve1) /
+							10 ** token1Info.decimals;
+
 						return PriceFetcher.getPriceByTokenAddress(
 							web3,
-							pairInfo.token1Address
-						).then((priceToken1) => {
-							return (
-								priceToken0 * numReserve0In1LPToken +
-								priceToken1 * numReserve1In1LPToken
-							);
+							pairInfo.token0Address
+						).then((priceToken0) => {
+							return PriceFetcher.getPriceByTokenAddress(
+								web3,
+								pairInfo.token1Address
+							).then((priceToken1) => {
+								return (
+									priceToken0 * numReserve0In1LPToken +
+									priceToken1 * numReserve1In1LPToken
+								);
+							});
 						});
 					});
 				});
@@ -57,7 +64,8 @@ var getPriceOfLPTokenFromTokens = function (
 	web3,
 	factoryAddress,
 	tokenA,
-	tokenB
+	tokenB,
+	addressTransactions
 ) {
 	return LiquidityPairFetcher.getPairContractWithTokensAddress(
 		web3,
@@ -65,7 +73,7 @@ var getPriceOfLPTokenFromTokens = function (
 		tokenA,
 		tokenB
 	).then((pairAddress) => {
-		return getPriceOfLPToken(web3, pairAddress);
+		return getPriceOfLPToken(web3, pairAddress, addressTransactions);
 	});
 };
 
