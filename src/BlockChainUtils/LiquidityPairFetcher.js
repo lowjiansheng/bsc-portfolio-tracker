@@ -143,17 +143,8 @@ var getAmountDepositedIntoPair = function (
 			userAddress,
 			token0Address,
 			token1Address
-		).then((txHashes) => {
-			if (txHashes !== undefined) {
-				for (let i = 0; i < txHashes.length; i++) {
-					let filteredTransactions = addressTransactions["result"].filter(
-						(transaction) => {
-							return transaction["hash"] === txHashes[i];
-						}
-					);
-					console.log(filteredTransactions);
-				}
-			}
+		).then((res) => {
+			console.log(res);
 		});
 	}
 };
@@ -168,95 +159,129 @@ function getDepositTxHashes(
 	token0Address,
 	token1Address
 ) {
-	return new Promise((resolve, reject) => {
-		// identify amount of tokens deposited into the pool
-		// the tx would include a sending of the pair token to user address
-		const txHashesThatSendLPToUser = addressTransactions["result"].filter(
-			(result) => {
-				return (
-					result["contractAddress"] === pairAddress.toLowerCase() &&
-					result["to"] === userAddress.toLowerCase()
-				);
-			}
-		);
-		if (txHashesThatSendLPToUser.length === 0) {
-			console.log(
-				"cannot find tx with lp deposit. lp-token might be deposited from other wallets"
+	// identify amount of tokens deposited into the pool
+	// the tx would include a sending of the pair token to user address
+	const txHashesThatSendLPToUser = addressTransactions["result"].filter(
+		(result) => {
+			return (
+				result["contractAddress"] === pairAddress.toLowerCase() &&
+				result["to"] === userAddress.toLowerCase()
 			);
-			resolve();
-		} else {
-			//0x43d6b45b2acb991db412bb3ccc80c611b7bee74c9607b5da1fb54b0753e5679d
-			let potentialDepositTxHashesPromise = [];
-			for (let i = 0; i < txHashesThatSendLPToUser.length; i++) {
-				let potentialDepositTransactionGroup = addressTransactions[
-					"result"
-				].filter((transaction) => {
-					return transaction["hash"] === txHashesThatSendLPToUser[i]["hash"];
-				});
-
-				if (potentialDepositTransactionGroup.length === 3) {
-					if (
-						potentialDepositTransactionGroup[0][
-							"contractAddress"
-						].toLowerCase() === token0Address.toLowerCase() &&
-						potentialDepositTransactionGroup[1][
-							"contractAddress"
-						].toLowerCase() === token1Address.toLowerCase()
-					) {
-						let res = {
-							amountToken0: potentialDepositTransactionGroup[0]["value"],
-							amountToken1: potentialDepositTransactionGroup[1]["value"],
-						};
-						console.log(res);
-					} else if (
-						potentialDepositTransactionGroup[1][
-							"contractAddress"
-						].toLowerCase() === token0Address.toLowerCase() &&
-						potentialDepositTransactionGroup[0][
-							"contractAddress"
-						].toLowerCase() === token1Address.toLowerCase()
-					) {
-						let res = {
-							amountToken0: potentialDepositTransactionGroup[1]["value"],
-							amountToken1: potentialDepositTransactionGroup[0]["value"],
-						};
-						console.log(res);
-					} else {
-						continue;
-					}
-				} else if (potentialDepositTransactionGroup.length === 2) {
-				}
-
-				// in this case will definitely have 3 transactions
-
-				potentialDepositTxHashesPromise.push(
-					BSCScanUtils.getBscScanInternalTransactionsBasedOnTxHash(
-						txHashesThatSendLPToUser[i]["hash"]
-					).then((internalHashes) => {
-						const filteredInternalHashes = internalHashes["result"].filter(
-							(result) => {
-								return result["from"] === PANCAKESWAP_ROUTER_CONTRACT;
-							}
-						);
-						console.log(filteredInternalHashes);
-						if (filteredInternalHashes.length > 0) {
-							return txHashesThatSendLPToUser[i]["hash"];
-						} else {
-							return;
-						}
-					})
-				);
-			}
-			Promise.all(potentialDepositTxHashesPromise).then((depositTxHashes) => {
-				const filteredDepositTxHashes = depositTxHashes.filter(
-					(depositTxHash) => {
-						return depositTxHash !== undefined;
-					}
-				);
-				resolve(filteredDepositTxHashes);
-			});
 		}
-	});
+	);
+	if (txHashesThatSendLPToUser.length === 0) {
+		console.log(
+			"cannot find tx with lp deposit. lp-token might be deposited from other wallets"
+		);
+		return new Promise((resolve, reject) => {
+			resolve();
+		});
+	} else {
+		//0x43d6b45b2acb991db412bb3ccc80c611b7bee74c9607b5da1fb54b0753e5679d
+		let potentialDepositTxHashesPromise = [];
+		for (let i = 0; i < txHashesThatSendLPToUser.length; i++) {
+			let potentialDepositTransactionGroup = addressTransactions[
+				"result"
+			].filter((transaction) => {
+				return transaction["hash"] === txHashesThatSendLPToUser[i]["hash"];
+			});
+
+			potentialDepositTxHashesPromise.push(
+				new Promise((resolve, reject) => {
+					if (potentialDepositTransactionGroup.length === 3) {
+						let res;
+						if (
+							potentialDepositTransactionGroup[0][
+								"contractAddress"
+							].toLowerCase() === token0Address.toLowerCase() &&
+							potentialDepositTransactionGroup[1][
+								"contractAddress"
+							].toLowerCase() === token1Address.toLowerCase()
+						) {
+							res = {
+								amountToken0: potentialDepositTransactionGroup[0]["value"],
+								amountToken1: potentialDepositTransactionGroup[1]["value"],
+							};
+						} else if (
+							potentialDepositTransactionGroup[1][
+								"contractAddress"
+							].toLowerCase() === token0Address.toLowerCase() &&
+							potentialDepositTransactionGroup[0][
+								"contractAddress"
+							].toLowerCase() === token1Address.toLowerCase()
+						) {
+							res = {
+								amountToken0: potentialDepositTransactionGroup[1]["value"],
+								amountToken1: potentialDepositTransactionGroup[0]["value"],
+							};
+						}
+						resolve(res);
+						// case where 1 of the pair is BNB
+					} else if (potentialDepositTransactionGroup.length === 2) {
+						let res;
+						console.log("length 2!");
+						if (
+							token0Address.toLowerCase() === WBNB_ADDRESS.toLowerCase() &&
+							potentialDepositTransactionGroup[0][
+								"contractAddress"
+							].toLowerCase() === token1Address.toLowerCase()
+						) {
+							resolve(
+								BSCScanUtils.getBscScanInternalTransactionsBasedOnTxHash(
+									txHashesThatSendLPToUser[i]["hash"]
+								).then((internalTx) => {
+									if (
+										internalTx["result"].length === 1 &&
+										internalTx["result"][0]["to"] === WBNB_ADDRESS
+									) {
+										res = {
+											amountToken0: internalTx[0]["value"],
+											amountToken1:
+												potentialDepositTransactionGroup["result"][0]["value"],
+										};
+										return res;
+									}
+								})
+							);
+						} else if (
+							token1Address.toLowerCase() === WBNB_ADDRESS.toLowerCase() &&
+							potentialDepositTransactionGroup[0][
+								"contractAddress"
+							].toLowerCase() === token0Address.toLowerCase()
+						) {
+							resolve(
+								BSCScanUtils.getBscScanInternalTransactionsBasedOnTxHash(
+									txHashesThatSendLPToUser[i]["hash"]
+								).then((internalTx) => {
+									if (
+										internalTx["result"].length === 1 &&
+										internalTx["result"][0]["to"].toLowerCase() ===
+											WBNB_ADDRESS.toLowerCase()
+									) {
+										res = {
+											amountToken0:
+												potentialDepositTransactionGroup[0]["value"],
+											amountToken1: internalTx["result"][0]["value"],
+										};
+										return res;
+									}
+								})
+							);
+						} else {
+							resolve();
+						}
+					} else {
+						resolve();
+					}
+				})
+			);
+		}
+		return Promise.all(potentialDepositTxHashesPromise).then((res) => {
+			return res.filter((indivRes) => {
+				return indivRes !== undefined;
+			});
+		});
+	}
 }
 
 module.exports = {
