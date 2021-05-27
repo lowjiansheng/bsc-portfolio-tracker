@@ -8,6 +8,7 @@ const Constants = require("./constants");
 const http = require("https");
 const { PANCAKESWAP_ROUTER_CONTRACT, WBNB_ADDRESS } = require("./constants");
 const { runInNewContext } = require("vm");
+const { deserialize } = require("v8");
 
 var getPairInformationWithPairAddress = function (
 	web3,
@@ -102,36 +103,6 @@ var getAmountDepositedIntoPair = function (
 	token0Address,
 	token1Address
 ) {
-	/*
-	getPairInformationWithPairAddress(web3, pairAddress).then(
-		(pairInformation) => {
-			let ercTokenAddress;
-			if (
-				pairInformation.token0Address.toLowerCase() ===
-				Constants.WBNB_ADDRESS.toLowerCase()
-			) {
-				ercTokenAddress = pairInformation.token1Address;
-			} else if (
-				pairInformation.token1Address.toLowerCase() ===
-				Constants.WBNB_ADDRESS.toLowerCase()
-			) {
-				ercTokenAddress = pairInformation.token0Address;
-			} else {
-				// ERC-ERC pair
-			}
-		}
-	);*/
-
-	/*
-	console.log(
-		addressTransactions["result"].filter((tx) => {
-			return (
-				tx["hash"] ===
-				"0x50a86fe02e264f07e40774af9cb7da7a127b833cef20fdf3cbddc838180875b4"
-			);
-		})
-	);*/
-
 	if (addressTransactions === undefined) {
 		return new Promise((resolve, reject) => {
 			resolve();
@@ -143,11 +114,36 @@ var getAmountDepositedIntoPair = function (
 			userAddress,
 			token0Address,
 			token1Address
-		).then((res) => {
-			console.log(res);
+		).then((depositTxHashes) => {
+			return getTotalTokenDeposited(depositTxHashes);
 		});
 	}
 };
+
+function getTotalTokenDeposited(depositTransactions) {
+	if (depositTransactions.length === 0) {
+		return {
+			averageToken0: 0,
+			averageToken1: 0,
+			totalLPTokenReceived: 0,
+		};
+	}
+
+	const sumToken0 = depositTransactions.reduce((acc, curr) => {
+		return acc + parseInt(curr.amountToken0);
+	}, 0);
+	const sumToken1 = depositTransactions.reduce((acc, curr) => {
+		return acc + parseInt(curr.amountToken1);
+	}, 0);
+	const totalLPTokenReceived = depositTransactions.reduce((acc, curr) => {
+		return acc + parseInt(curr.amountLPTokenReceived);
+	}, 0);
+	return {
+		totalToken0: sumToken0,
+		totalToken1: sumToken1,
+		totalLPTokenReceived: totalLPTokenReceived,
+	};
+}
 
 // deposit transactions should have 2/3 transactions in total
 // 3 transactions if non BNB is used.
@@ -174,7 +170,7 @@ function getDepositTxHashes(
 			"cannot find tx with lp deposit. lp-token might be deposited from other wallets"
 		);
 		return new Promise((resolve, reject) => {
-			resolve();
+			resolve([]);
 		});
 	} else {
 		//0x43d6b45b2acb991db412bb3ccc80c611b7bee74c9607b5da1fb54b0753e5679d
@@ -201,6 +197,8 @@ function getDepositTxHashes(
 							res = {
 								amountToken0: potentialDepositTransactionGroup[0]["value"],
 								amountToken1: potentialDepositTransactionGroup[1]["value"],
+								amountLPTokenReceived:
+									potentialDepositTransactionGroup[2]["value"],
 							};
 						} else if (
 							potentialDepositTransactionGroup[1][
@@ -213,13 +211,14 @@ function getDepositTxHashes(
 							res = {
 								amountToken0: potentialDepositTransactionGroup[1]["value"],
 								amountToken1: potentialDepositTransactionGroup[0]["value"],
+								amountLPTokenReceived:
+									potentialDepositTransactionGroup[2]["value"],
 							};
 						}
 						resolve(res);
 						// case where 1 of the pair is BNB
 					} else if (potentialDepositTransactionGroup.length === 2) {
 						let res;
-						console.log("length 2!");
 						if (
 							token0Address.toLowerCase() === WBNB_ADDRESS.toLowerCase() &&
 							potentialDepositTransactionGroup[0][
@@ -238,6 +237,8 @@ function getDepositTxHashes(
 											amountToken0: internalTx[0]["value"],
 											amountToken1:
 												potentialDepositTransactionGroup["result"][0]["value"],
+											amountLPTokenReceived:
+												potentialDepositTransactionGroup[1]["value"],
 										};
 										return res;
 									}
@@ -262,6 +263,8 @@ function getDepositTxHashes(
 											amountToken0:
 												potentialDepositTransactionGroup[0]["value"],
 											amountToken1: internalTx["result"][0]["value"],
+											amountLPTokenReceived:
+												potentialDepositTransactionGroup[1]["value"],
 										};
 										return res;
 									}
