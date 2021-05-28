@@ -28,8 +28,7 @@ var getPriceByTokenAddress = function (
 		.then((pairAddress) => {
 			return LiquidityPairFetcher.getPairInformationWithPairAddress(
 				web3,
-				pairAddress,
-				accountTransactions
+				pairAddress
 			).then((reserves) => {
 				// we want to match token with the correct reserve
 				let bUSDReserve;

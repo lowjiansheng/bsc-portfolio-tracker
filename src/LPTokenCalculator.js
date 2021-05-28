@@ -5,8 +5,7 @@ const TokenInfoFetcher = require("./BlockChainUtils/TokenInfoFetcher");
 var getPriceOfLPToken = function (web3, pairAddress, accountTransactions) {
 	return LiquidityPairFetcher.getPairInformationWithPairAddress(
 		web3,
-		pairAddress,
-		accountTransactions
+		pairAddress
 	).then((pairInfo) => {
 		const totalLPSupply = pairInfo.lpTotalSupply / 10 ** pairInfo.lpDecimals;
 		const ratioOf1LPToTotalSuppler = 1 / totalLPSupply;
@@ -30,17 +29,6 @@ var getPriceOfLPToken = function (web3, pairAddress, accountTransactions) {
 						(ratioOf1LPToTotalSuppler * pairInfo.reserves.reserve1) /
 						10 ** token1Info.decimals;
 
-					const totalLPSupplyDeposited =
-						pairInfo.totalLPTokenReceived / 10 ** pairInfo.lpDecimals;
-					console.log(totalLPSupplyDeposited);
-
-					const numReserve0In1LPTokenInitialDeposit =
-						(totalLPSupplyDeposited * pairInfo.amountToken0Deposited) /
-						10 ** token0Info.decimals;
-					const numReserve1In1LPTokenInitialDeposit =
-						(totalLPSupplyDeposited * pairInfo.amountToken1Deposited) /
-						10 ** token1Info.decimals;
-
 					return PriceFetcher.getPriceByTokenAddress(
 						web3,
 						pairInfo.token0Address
@@ -49,18 +37,62 @@ var getPriceOfLPToken = function (web3, pairAddress, accountTransactions) {
 							web3,
 							pairInfo.token1Address
 						).then((priceToken1) => {
-							const priceOfLPTokenDeposit =
-								priceToken0 * numReserve0In1LPTokenInitialDeposit +
-								priceToken1 * numReserve1In1LPTokenInitialDeposit;
-
-							return {
-								currentLPTokenPrice:
-									priceToken0 * numReserve0In1LPToken +
-									priceToken1 * numReserve1In1LPToken,
-								depositedLPTokenPrice: priceOfLPTokenDeposit,
-							};
+							return (
+								priceToken0 * numReserve0In1LPToken +
+								priceToken1 * numReserve1In1LPToken
+							);
 						});
 					});
+				});
+			});
+		});
+	});
+};
+
+var calculateImpermanantLoss = function (
+	web3,
+	totalAmountDeposit,
+	userAddress,
+	pairAddress,
+	addressTransactions,
+	totalValueAmount
+) {
+	return LiquidityPairFetcher.getPairInformationWithPairAddress(
+		web3,
+		pairAddress
+	).then((pairInfo) => {
+		return PriceFetcher.getPriceByTokenAddress(
+			web3,
+			pairInfo.token0Address
+		).then((priceToken0) => {
+			return PriceFetcher.getPriceByTokenAddress(
+				web3,
+				pairInfo.token1Address
+			).then((priceToken1) => {
+				return LiquidityPairFetcher.getAmountDepositedIntoPair(
+					web3,
+					userAddress,
+					pairAddress,
+					addressTransactions,
+					pairInfo.token0Address,
+					pairInfo.token1Address
+				).then((amountDeposited) => {
+					const amountLPTokenReceived =
+						amountDeposited.totalLPTokenReceived / 10 ** pairInfo.lpDecimals;
+					// TODO: should do an averaging or something. what if the same pair is split
+					// in different pools? that would not work in this scenario.
+					if (totalAmountDeposit !== amountLPTokenReceived) {
+						console.log(
+							"this account did not deposit the full amount of lp tokens"
+						);
+						return 0;
+					}
+					const totalValueDeposited =
+						(amountDeposited.totalToken0 / 10 ** 18) * priceToken0 +
+						(amountDeposited.totalToken1 / 10 ** 18) * priceToken1;
+					const impermanantLoss =
+						((totalValueAmount - totalValueDeposited) / totalValueAmount) * 100;
+					return impermanantLoss;
 				});
 			});
 		});
@@ -106,4 +138,5 @@ module.exports = {
 	getPriceOfLPTokenFromTokens,
 	getAverageAmountDepositedIntoLP,
 	isLPToken,
+	calculateImpermanantLoss,
 };

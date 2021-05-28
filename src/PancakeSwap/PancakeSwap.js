@@ -5,6 +5,9 @@ const CakeConstants = require("./constants");
 const LPTokenCalculator = require("../LPTokenCalculator");
 const PriceFetcher = require("../BlockChainUtils/PriceFetcher");
 const TokenInfoFetcher = require("../BlockChainUtils/TokenInfoFetcher");
+const {
+	getPairInformationWithPairAddress,
+} = require("../BlockChainUtils/LiquidityPairFetcher");
 
 function PancakeSwap(web3) {
 	this.web3 = web3;
@@ -44,17 +47,25 @@ function PancakeSwap(web3) {
 											10 ** cakeTokenInfo.decimals;
 										const pendingValueCake =
 											pendingCake * cakeTokenInfo.pricePerToken;
-										return {
-											totalValueAmount:
-												totalAmountDeposit *
-												pricePerLPToken.currentLPTokenPrice,
-											totalValueAmountDeposited:
-												totalAmountDeposit *
-												pricePerLPToken.depositedLPTokenPrice,
-											amountDeposit: totalAmountDeposit,
-											pendingCake: pendingCake,
-											pendingValueCake: pendingValueCake,
-										};
+										const totalValueAmount =
+											totalAmountDeposit * pricePerLPToken;
+
+										return LPTokenCalculator.calculateImpermanantLoss(
+											web3,
+											totalAmountDeposit,
+											userAddress,
+											participatedPool.lpToken,
+											accountTransactions,
+											totalValueAmount
+										).then((impermanantLossPercentage) => {
+											return {
+												totalValueAmount: totalAmountDeposit * pricePerLPToken,
+												impermanantLossPercentage: impermanantLossPercentage,
+												amountDeposit: totalAmountDeposit,
+												pendingCake: pendingCake,
+												pendingValueCake: pendingValueCake,
+											};
+										});
 									});
 								});
 							} else {

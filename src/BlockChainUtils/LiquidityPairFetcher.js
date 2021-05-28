@@ -4,17 +4,9 @@ const IPancakeFactory = require("../../build/contracts/IPancakeFactory.json");
 const BSCScanUtils = require("../BscScanUtils/BscScanUtils");
 const secrets = require("../secrets/secrets");
 
-const Constants = require("./constants");
-const http = require("https");
 const { PANCAKESWAP_ROUTER_CONTRACT, WBNB_ADDRESS } = require("./constants");
-const { runInNewContext } = require("vm");
-const { deserialize } = require("v8");
 
-var getPairInformationWithPairAddress = function (
-	web3,
-	pairAddress,
-	accountTransactions
-) {
+var getPairInformationWithPairAddress = function (web3, pairAddress) {
 	var contract = new web3.eth.Contract(IPancakePair["abi"], pairAddress);
 	return contract.methods
 		.getReserves()
@@ -40,29 +32,14 @@ var getPairInformationWithPairAddress = function (
 												.name()
 												.call()
 												.then((name) => {
-													return getAmountDepositedIntoPair(
-														web3,
-														secrets.PUBLIC_ADDRESS_TO_TRACK,
-														pairAddress,
-														accountTransactions,
-														token0Address,
-														token1Address
-													).then((amountDeposited) => {
-														return {
-															reserves: reserves,
-															token0Address: token0Address,
-															token1Address: token1Address,
-															lpTotalSupply: totalSupply,
-															lpDecimals: decimals,
-															name: name,
-															amountToken0Deposited:
-																amountDeposited.totalToken0,
-															amountToken1Deposited:
-																amountDeposited.totalToken1,
-															totalLPTokenReceived:
-																amountDeposited.totalLPTokenReceived,
-														};
-													});
+													return {
+														reserves: reserves,
+														token0Address: token0Address,
+														token1Address: token1Address,
+														lpTotalSupply: totalSupply,
+														lpDecimals: decimals,
+														name: name,
+													};
 												});
 										});
 								});
