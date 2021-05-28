@@ -45,7 +45,12 @@ function PancakeSwap(web3) {
 										const pendingValueCake =
 											pendingCake * cakeTokenInfo.pricePerToken;
 										return {
-											totalValueAmount: totalAmountDeposit * pricePerLPToken,
+											totalValueAmount:
+												totalAmountDeposit *
+												pricePerLPToken.currentLPTokenPrice,
+											totalValueAmountDeposited:
+												totalAmountDeposit *
+												pricePerLPToken.depositedLPTokenPrice,
 											amountDeposit: totalAmountDeposit,
 											pendingCake: pendingCake,
 											pendingValueCake: pendingValueCake,

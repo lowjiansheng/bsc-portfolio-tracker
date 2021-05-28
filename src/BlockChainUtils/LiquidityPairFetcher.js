@@ -47,7 +47,7 @@ var getPairInformationWithPairAddress = function (
 														accountTransactions,
 														token0Address,
 														token1Address
-													).then(() => {
+													).then((amountDeposited) => {
 														return {
 															reserves: reserves,
 															token0Address: token0Address,
@@ -55,6 +55,12 @@ var getPairInformationWithPairAddress = function (
 															lpTotalSupply: totalSupply,
 															lpDecimals: decimals,
 															name: name,
+															amountToken0Deposited:
+																amountDeposited.totalToken0,
+															amountToken1Deposited:
+																amountDeposited.totalToken1,
+															totalLPTokenReceived:
+																amountDeposited.totalLPTokenReceived,
 														};
 													});
 												});
@@ -105,7 +111,7 @@ var getAmountDepositedIntoPair = function (
 ) {
 	if (addressTransactions === undefined) {
 		return new Promise((resolve, reject) => {
-			resolve();
+			resolve({});
 		});
 	} else {
 		return getDepositTxHashes(
@@ -123,20 +129,20 @@ var getAmountDepositedIntoPair = function (
 function getTotalTokenDeposited(depositTransactions) {
 	if (depositTransactions.length === 0) {
 		return {
-			averageToken0: 0,
-			averageToken1: 0,
+			totalToken0: 0,
+			totalToken1: 0,
 			totalLPTokenReceived: 0,
 		};
 	}
 
 	const sumToken0 = depositTransactions.reduce((acc, curr) => {
-		return acc + parseInt(curr.amountToken0);
+		return acc + parseFloat(curr.amountToken0);
 	}, 0);
 	const sumToken1 = depositTransactions.reduce((acc, curr) => {
-		return acc + parseInt(curr.amountToken1);
+		return acc + parseFloat(curr.amountToken1);
 	}, 0);
 	const totalLPTokenReceived = depositTransactions.reduce((acc, curr) => {
-		return acc + parseInt(curr.amountLPTokenReceived);
+		return acc + parseFloat(curr.amountLPTokenReceived);
 	}, 0);
 	return {
 		totalToken0: sumToken0,

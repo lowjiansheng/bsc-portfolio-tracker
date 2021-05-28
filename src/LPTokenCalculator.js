@@ -10,6 +10,7 @@ var getPriceOfLPToken = function (web3, pairAddress, accountTransactions) {
 	).then((pairInfo) => {
 		const totalLPSupply = pairInfo.lpTotalSupply / 10 ** pairInfo.lpDecimals;
 		const ratioOf1LPToTotalSuppler = 1 / totalLPSupply;
+		// TODO: Calculate average deposited token amount
 		return TokenInfoFetcher.getTokenInfoFromAddress(
 			web3,
 			pairInfo.token0Address
@@ -22,31 +23,42 @@ var getPriceOfLPToken = function (web3, pairAddress, accountTransactions) {
 					web3,
 					pairAddress
 				).then((factoryAddress) => {
-					return LiquidityPairFetcher.getAmountDepositedIntoPair(
-						web3,
-						pairAddress,
-						accountTransactions
-					).then(() => {
-						const numReserve0In1LPToken =
-							(ratioOf1LPToTotalSuppler * pairInfo.reserves.reserve0) /
-							10 ** token0Info.decimals;
-						const numReserve1In1LPToken =
-							(ratioOf1LPToTotalSuppler * pairInfo.reserves.reserve1) /
-							10 ** token1Info.decimals;
+					const numReserve0In1LPToken =
+						(ratioOf1LPToTotalSuppler * pairInfo.reserves.reserve0) /
+						10 ** token0Info.decimals;
+					const numReserve1In1LPToken =
+						(ratioOf1LPToTotalSuppler * pairInfo.reserves.reserve1) /
+						10 ** token1Info.decimals;
 
+					const totalLPSupplyDeposited =
+						pairInfo.totalLPTokenReceived / 10 ** pairInfo.lpDecimals;
+					console.log(totalLPSupplyDeposited);
+
+					const numReserve0In1LPTokenInitialDeposit =
+						(totalLPSupplyDeposited * pairInfo.amountToken0Deposited) /
+						10 ** token0Info.decimals;
+					const numReserve1In1LPTokenInitialDeposit =
+						(totalLPSupplyDeposited * pairInfo.amountToken1Deposited) /
+						10 ** token1Info.decimals;
+
+					return PriceFetcher.getPriceByTokenAddress(
+						web3,
+						pairInfo.token0Address
+					).then((priceToken0) => {
 						return PriceFetcher.getPriceByTokenAddress(
 							web3,
-							pairInfo.token0Address
-						).then((priceToken0) => {
-							return PriceFetcher.getPriceByTokenAddress(
-								web3,
-								pairInfo.token1Address
-							).then((priceToken1) => {
-								return (
+							pairInfo.token1Address
+						).then((priceToken1) => {
+							const priceOfLPTokenDeposit =
+								priceToken0 * numReserve0In1LPTokenInitialDeposit +
+								priceToken1 * numReserve1In1LPTokenInitialDeposit;
+
+							return {
+								currentLPTokenPrice:
 									priceToken0 * numReserve0In1LPToken +
-									priceToken1 * numReserve1In1LPToken
-								);
-							});
+									priceToken1 * numReserve1In1LPToken,
+								depositedLPTokenPrice: priceOfLPTokenDeposit,
+							};
 						});
 					});
 				});
